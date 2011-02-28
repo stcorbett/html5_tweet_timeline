@@ -1,0 +1,4 @@
+loads ~10k objects into a websql database.
+Run queries on this database using the websql database interfaces in Chromium and Safari.
+
+adapted from http://rem.im/html5-tweet-time-range.html

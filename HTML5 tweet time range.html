@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!-- saved from url=(0041)http://rem.im/html5-tweet-time-range.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<title>HTML5 tweet time range</title>
+<style>
+  body { font-family: helvetica, arial;}
+</style>
+</head>
+<body>
+  <form>
+    <fieldset>
+    <legend>Select a time range of recent HTML5 tweets<span id="found"> (found: 1)</span></legend>
+    <input type="radio" value="5" id="t5m" name="timerange"><label for="t5m">5 minutes</label>
+    <input type="radio" value="30" id="t30m" name="timerange"><label for="t30m">30 minutes</label>
+    <input type="radio" value="120" id="t2h" name="timerange"><label for="t2h">2 hours</label>
+    <input type="radio" value="all" id="tall" name="timerange" checked="checked"><label for="tall">all time</label>
+    </fieldset>
+  </form>
+  <ol id="tweets"><li>Seven Tools To Start Your Hassle-Free HTML5 Project | Free and Useful Online Resources for D... <a href="http://bit.ly/egDucU">http://bit.ly/egDucU</a> #<a href="http://search.twitter.com/search?q=%23delicious">delicious</a> #<a href="http://search.twitter.com/search?q=%23popular">popular</a> [posted about 6 hours ago]</li></ol>
+<script src="./HTML5 tweet time range_files/ify.js"></script>
+<script>
+var tweetEl = document.getElementById('tweets');
+var db;
+
+var callback = saveTweets;
+
+function getTweets() {
+  var script = document.createElement('script');
+  script.src = 'http://search.twitter.com/search.json?q=html5 -RT&rpp=100&callback=saveTweets';
+  document.body.appendChild(script);
+}
+
+// our Twitter API callback function
+function saveTweets(tweets) {
+  for (var i = 0; i < tweets.results.length; i++) {
+    (function (tweet) {
+      db.transaction(function (tx) {
+        tx.executeSql('INSERT INTO tweets VALUES (?, ?, ?, ?)', [Math.floor(Math.random()*1000000), tweet.from_user, (new Date(Date.parse(tweet.created_at))).getTime() / 1000, tweet.text]); // div 1000 to get to seconds
+      });
+    })(tweets.results[i]);
+  }
+
+  show('all');
+}
+
+function show(amount) {
+  db.transaction(function (tx) {
+    tx.executeSql('SELECT * FROM tweets' + (amount != 'all' ? ' WHERE date > strftime("%s", "now", "-' + amount + ' minutes")' : ''), [], function (tx, results) {
+      var html = [];
+      tweetEl.innerHTML = '';
+      document.querySelector('#found').innerHTML = ' (found: ' + results.rows.length + ')';
+      if (results.rows && results.rows.length) {
+        for (var i = 0; i < results.rows.length; i++) {
+          html.push('<li>' + ify.clean(results.rows.item(i).text) + ' [posted ' + relative_time(results.rows.item(i).date*1000) + ']</li>');
+        }
+        tweetEl.innerHTML = html.join('');
+      }
+    });
+  });
+}
+
+function relative_time(d) {
+  var date = new Date(d),
+      relative_to = new Date(),
+      delta = ~~((relative_to.getTime() - date.getTime()) / 1000),
+      r = '';
+
+  delta = delta + (relative_to.getTimezoneOffset() * 60);
+
+  if (delta < 5) {
+    r = 'less than 5 seconds ago';
+  } else if (delta < 30) {
+    r = 'half a minute ago';
+  } else if (delta < 60) {
+    r = 'less than a minute ago';
+  } else if (delta < 120) {
+    r = '1 minute ago';
+  } else if (delta < (45*60)) {
+    r = (~~(delta / 60)).toString() + ' minutes ago';
+  } else if (delta < (2*90*60)) { // 2* because sometimes read 1 hours ago
+    r = 'about 1 hour ago';
+  } else if (delta < (24*60*60)) {
+    r = 'about ' + (~~(delta / 3600)).toString() + ' hours ago';
+  } else {
+    r = date.toString();
+  }
+
+  return r;
+}
+
+[].forEach.call(document.querySelectorAll('input[type=radio]'), function (el) {
+  el.onclick = function () {
+    show(this.value);
+  }
+});
+
+function setupDatabase() {
+  if (!window.openDatabase) {
+    tweetEl.innerHTML = '<li>Web SQL Database API is not available in this browser, please try nightly Opera, Webkit or Chrome.</li>';
+    return;
+  }
+  db = openDatabase('tweets', '1.0', 'db of tweets', 30 * 1024 * 1024);
+  db.transaction(function (tx) {
+    tx.executeSql('DROP TABLE IF EXISTS tweets');
+    tx.executeSql('CREATE TABLE IF NOT EXISTS tweets (id unique, screen_name, date integer, text)');
+  });
+  getTweets();
+}
+
+setupDatabase();
+
+</script>
+
+<script src="./HTML5 tweet time range_files/search.json"></script>
+
+</body></html>
